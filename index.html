@@ -171,6 +171,7 @@
       <a href="#bench" data-i18n="nav_bench">Benchmarks</a>
       <a href="#fails" data-i18n="nav_fails">Dead ends</a>
       <a href="#war" data-i18n="nav_war">War stories</a>
+      <a href="#lessons" data-i18n="nav_lessons">Lessons</a>
     </nav>
     <div class="lang">
       <button id="enBtn" class="on" onclick="setLang('en')">EN</button>
@@ -492,6 +493,22 @@
     <h2 data-i18n="wr_h">War stories</h2>
     <p data-i18n="wr_b">The findings above are clean in hindsight. Getting there meant fighting these — the kind of thing no tutorial warns you about.</p>
     <div id="warGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px"></div>
+  </section>
+
+  <!-- LESSONS -->
+  <section id="lessons">
+    <span class="part-tag" data-i18n="lessons_tag">Deep Dives</span>
+    <h2 data-i18n="lessons_h">Detailed Lessons</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3 style="margin-top:0"><a href="0001-the-chunking-dilemma.html" data-i18n="lesson1_title">Lesson 1: The Chunking Dilemma</a></h3>
+        <p class="small" data-i18n="lesson1_desc">Explore the trade-offs of different chunk sizes, text overlapping, and how chunking affects retrieval recall and precision.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0"><a href="0002-fuse-diversify-rerank.html" data-i18n="lesson2_title">Lesson 2: After Retrieval — Fuse, Diversify, Rerank</a></h3>
+        <p class="small" data-i18n="lesson2_desc">A deep dive into combining sparse and dense retrieval, rank fusion strategies, MMR diversification, and LLM-based reranking.</p>
+      </div>
+    </div>
   </section>
 
   <!-- TAKEAWAYS -->
@@ -891,7 +908,15 @@ const I18N = {
   gl_tag:{en:'Glossary',uk:'Глосарій'},
   gl_h:{en:'Words, in plain language',uk:'Слова — простою мовою'},
   ft_1:{en:'Built from a real RAG project on the DOU.ua corpus · all numbers are measured, not illustrative.',uk:'Зроблено з реального RAG-проєкту на корпусі DOU.ua · усі числа виміряні, не ілюстративні.'},
-  ft_2:{en:'One self-contained HTML file. No tracking, no network, works offline.',uk:'Один самодостатній HTML-файл. Без трекінгу, без мережі, працює офлайн.'}
+  ft_2:{en:'One self-contained HTML file. No tracking, no network, works offline.',uk:'Один самодостатній HTML-файл. Без трекінгу, без мережі, працює офлайн.'},
+
+  nav_lessons:{en:'Lessons',uk:'Уроки'},
+  lessons_tag:{en:'Deep Dives',uk:'Глибокі занурення'},
+  lessons_h:{en:'Detailed Lessons',uk:'Детальні уроки'},
+  lesson1_title:{en:'Lesson 1: The Chunking Dilemma',uk:'Урок 1: Дилема розбиття на частини'},
+  lesson1_desc:{en:'Explore the trade-offs of different chunk sizes, text overlapping, and how chunking affects retrieval recall and precision.',uk:'Дослідіть компроміси різних розмірів частин тексту, перекриття та вплив розбиття на повноту й точність пошуку.'},
+  lesson2_title:{en:'Lesson 2: After Retrieval — Fuse, Diversify, Rerank',uk:'Урок 2: Після пошуку — злиття, диверсифікація та реранкінг'},
+  lesson2_desc:{en:'A deep dive into combining sparse and dense retrieval, rank fusion strategies, MMR diversification, and LLM-based reranking.',uk:'Глибоке занурення у поєднання розрідженого й щільного пошуку, стратегії злиття рангів, диверсифікацію MMR та реранкінг на основі LLM.'}
 };
 
 /* ============================================================

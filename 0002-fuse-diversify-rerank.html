@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 02 — After Retrieval: Fuse, Diversify, Rerank</title>
+<style>
+  :root{
+    --ink:#1a1a2e; --muted:#5c5c74; --line:#e4e4ef; --bg:#fbfbfd; --card:#ffffff;
+    --accent:#5b3df5; --accent-soft:#efeaff;
+    --recall:#1a7a4c; --recall-soft:#e0f5ea;
+    --prec:#b03a3a; --prec-soft:#fde8e8;
+    --good:#1a7a4c; --bad:#b03a3a;
+    --bm25:#b06a1a; --bm25-soft:#fdf1e0;
+    --vec:#3a55b0; --vec-soft:#e6edff;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.6;
+    max-width:760px; margin:0 auto; padding:48px 24px 90px;
+  }
+  .kicker{font-size:.78rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent)}
+  h1{font-size:2.1rem; line-height:1.15; letter-spacing:-.025em; margin:.2em 0 .3em}
+  .lede{font-size:1.12rem; color:var(--muted); margin:0 0 8px}
+  h2{font-size:1.35rem; letter-spacing:-.015em; margin:2.4em 0 .4em; padding-top:.4em}
+  h2 .n{color:var(--accent); font-variant-numeric:tabular-nums; margin-right:.4em}
+  h3{font-size:1.05rem; margin:1.4em 0 .3em}
+  p{margin:.7em 0}
+  code{background:#eef0f6; padding:1px 6px; border-radius:5px; font-size:.86em}
+  a{color:var(--accent)}
+  .mission{
+    background:var(--accent-soft); border-left:4px solid var(--accent);
+    border-radius:0 8px 8px 0; padding:12px 18px; font-size:.92rem; margin:18px 0 0;
+  }
+  .mission b{color:var(--accent)}
+  .formula{
+    background:#16213e; color:#e8e8f5; border-radius:12px; padding:16px 20px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:.98rem; margin:16px 0; overflow-x:auto; text-align:center;
+  }
+  .formula .hl{color:#a99bff; font-weight:700}
+  .formula small{color:#9a9ab8; font-family:inherit; display:block; margin-top:8px; font-size:.78rem; text-align:center}
+  .pipeline{
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:center;
+    margin:18px 0; font-size:.85rem; font-weight:600;
+  }
+  .pipeline .stage{border:1.5px solid var(--line); border-radius:9px; padding:7px 12px; background:#fff}
+  .pipeline .stage.dim{color:var(--muted); border-style:dashed}
+  .pipeline .stage.f{background:var(--bm25-soft); border-color:var(--bm25); color:var(--bm25)}
+  .pipeline .stage.m{background:var(--recall-soft); border-color:var(--recall); color:var(--recall)}
+  .pipeline .stage.r{background:var(--vec-soft); border-color:var(--vec); color:var(--vec)}
+  .pipeline .arrow{color:var(--muted)}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:.92rem}
+  th,td{padding:8px 10px; text-align:left; border-bottom:1px solid var(--line)}
+  th{font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:700}
+  tbody tr:hover{background:#f4f2fe}
+  figcaption{font-size:.8rem; color:var(--muted); text-align:center; margin-top:-6px}
+  .callout{background:var(--prec-soft); border-left:4px solid var(--prec); border-radius:0 8px 8px 0; padding:10px 16px; font-size:.92rem; margin:14px 0}
+  .callout.green{background:var(--recall-soft); border-color:var(--recall)}
+
+  /* demos */
+  .demo{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin:20px 0}
+  .demo h3{margin:0 0 4px; font-size:1.05rem}
+  .demo .sub{font-size:.85rem; color:var(--muted); margin:.2em 0 1em}
+  .ctl{display:flex; align-items:center; gap:12px; margin:8px 0; font-size:.88rem}
+  .ctl label{min-width:150px; font-weight:600}
+  .ctl output{min-width:44px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; text-align:right}
+  input[type=range]{flex:1; accent-color:var(--accent)}
+  .lists{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0}
+  .srclist{border-radius:10px; padding:10px 14px; font-size:.82rem}
+  .srclist.bm25{background:var(--bm25-soft)} .srclist.vec{background:var(--vec-soft)}
+  .srclist h4{margin:0 0 6px; font-size:.8rem; text-transform:uppercase; letter-spacing:.05em}
+  .srclist.bm25 h4{color:var(--bm25)} .srclist.vec h4{color:var(--vec)}
+  .srclist ol{margin:0; padding-left:1.4em}
+  .srclist li{margin:2px 0}
+  .fused{margin-top:14px}
+  .frow{display:flex; align-items:center; gap:10px; margin:5px 0; font-size:.86rem}
+  .frow .rk{width:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums}
+  .frow .nm{width:215px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .frow .badges{width:92px; font-size:.7rem; font-weight:700; white-space:nowrap}
+  .frow .badges .b{color:var(--bm25)} .frow .badges .v{color:var(--vec)}
+  .frow .barbox{flex:1; height:13px; background:#f0f0f8; border-radius:7px; overflow:hidden}
+  .frow .bar{height:100%; background:var(--accent); border-radius:7px; transition:width .25s ease}
+  .frow .sc{width:54px; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); font-size:.78rem}
+  .frow.top3 .nm{font-weight:700}
+  .mmr-doc{display:flex; align-items:center; gap:10px; margin:6px 0; padding:8px 12px; border:1.5px solid var(--line); border-radius:9px; font-size:.86rem; transition:.2s}
+  .mmr-doc .ord{width:20px; height:20px; border-radius:50%; background:var(--line); color:#fff; font-size:.72rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none}
+  .mmr-doc.picked{border-color:var(--recall); background:var(--recall-soft)}
+  .mmr-doc.picked .ord{background:var(--recall)}
+  .mmr-doc .meta{margin-left:auto; font-size:.74rem; color:var(--muted); white-space:nowrap}
+  .mmr-doc.dup .nm::after{content:" ⧉"; color:var(--prec)}
+
+  /* quiz */
+  .quiz{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin:22px 0}
+  .quiz .q{font-weight:600; margin:.2em 0 .8em}
+  .opt{
+    display:block; width:100%; text-align:left; cursor:pointer; margin:8px 0;
+    padding:11px 14px; border:1.5px solid var(--line); border-radius:10px;
+    background:#fff; font:inherit; color:inherit; transition:.15s;
+  }
+  .opt:hover{border-color:var(--accent)}
+  .opt.correct{border-color:var(--good); background:var(--recall-soft)}
+  .opt.wrong{border-color:var(--bad); background:var(--prec-soft)}
+  .opt:disabled{cursor:default}
+  .fb{font-size:.9rem; margin-top:10px; padding:10px 14px; border-radius:9px; display:none}
+  .fb.show{display:block}
+  .fb.ok{background:var(--recall-soft); color:var(--recall)}
+  .fb.no{background:var(--prec-soft); color:var(--prec)}
+
+  .ask{background:#16213e; color:#e8e8f5; border-radius:14px; padding:18px 22px; margin:34px 0 0; font-size:.95rem}
+  .ask b{color:#a99bff}
+  footer{margin-top:30px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.8rem}
+  @media(max-width:560px){.lists{grid-template-columns:1fr} .frow .nm{width:130px} .frow .badges{width:70px}}
+</style>
+</head>
+<body>
+  <div class="kicker">Lesson 02 · After Retrieval</div>
+  <h1>Fuse, Diversify, Rerank</h1>
+  <p class="lede">Chunking decides what <i>can</i> be found. These three stages decide what the LLM <i>actually sees</i>.</p>
+
+  <div class="mission">
+    <b>Why this matters for your mission:</b> the best chunking numbers you saw in
+    <a href="0001-the-chunking-dilemma.html">lesson 01</a> (Anthropic's 67% failure reduction)
+    were only reached <i>with</i> rank fusion and reranking. You can't defend a chunking choice
+    without knowing what the downstream pipeline will fix — and what it won't.
+  </div>
+
+  <h2><span class="n">1</span>The post-retrieval pipeline</h2>
+  <p>
+    After your chunks are embedded and indexed, a query kicks off this chain.
+    Each colored stage is optional — but the <b>order is not</b>: cheap operations first,
+    the expensive cross-encoder last, on the smallest list.
+  </p>
+  <div class="pipeline">
+    <span class="stage dim">query</span><span class="arrow">→</span>
+    <span class="stage">BM25 + vector<br>(parallel retrieval)</span><span class="arrow">→</span>
+    <span class="stage f">FUSE<br>RRF</span><span class="arrow">→</span>
+    <span class="stage r">RERANK<br>cross-encoder</span><span class="arrow">→</span>
+    <span class="stage m">DIVERSIFY<br>MMR</span><span class="arrow">→</span>
+    <span class="stage dim">top-k → LLM</span>
+  </div>
+  <table>
+    <thead><tr><th>Stage</th><th>Question it answers</th><th>Cost</th><th>Typical list size</th></tr></thead>
+    <tbody>
+      <tr><td><b>Fuse</b> (RRF)</td><td>How do I merge two ranked lists that score on different scales?</td><td>~free (arithmetic)</td><td>2×100 → 100</td></tr>
+      <tr><td><b>Rerank</b> (cross-encoder)</td><td>Of these candidates, which are <i>truly</i> relevant?</td><td>1 model call per doc (~100ms total)</td><td>100 → 20</td></tr>
+      <tr><td><b>Diversify</b> (MMR)</td><td>Are my finalists saying 5 different things, or 1 thing 5 times?</td><td>cheap (vector math)</td><td>20 → 5</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">2</span>Fuse — Reciprocal Rank Fusion</h2>
+  <p>
+    Hybrid search runs BM25 and vector search in parallel. Now you hold two ranked lists —
+    and a trap: <b>their scores are not comparable.</b> BM25 scores are unbounded
+    (12.4? 31.7?); cosine similarity lives in <code>[−1, 1]</code>. Summing or averaging raw
+    scores is meaningless. This is the <i>score normalization problem</i>
+    (<a href="https://opensearch.org/blog/introducing-reciprocal-rank-fusion-hybrid-search/">OpenSearch</a>).
+  </p>
+  <p>
+    RRF's move: <b>throw the scores away, keep only the ranks.</b>
+  </p>
+  <div class="formula">
+    RRF(d) &nbsp;=&nbsp; <span class="hl">Σ</span><sub>r ∈ retrievers</sub> &nbsp; <span class="hl">w<sub>r</sub></span> / ( <span class="hl">k</span> + rank<sub>r</sub>(d) )
+    <small>rank starts at 1 · doc missing from a list contributes 0 for that list · canonical RRF has all w<sub>r</sub> = 1
+    (<a href="https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf" style="color:#a99bff">Cormack et al., SIGIR 2009</a>)</small>
+  </div>
+
+  <h3>Managing <code>k</code> — the only required knob</h3>
+  <p>
+    <code>k</code> dampens the advantage of rank #1 over rank #2.
+    With <code>k=0</code>: rank 1 scores 1.0, rank 2 scores 0.5 — top hit dominates.
+    With <code>k=60</code>: rank 1 scores 0.0164, rank 2 scores 0.0161 — nearly equal, deep ranks still count.
+  </p>
+  <table>
+    <thead><tr><th><code>k</code> value</th><th>Effect</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>60</code> (default)</td><td>Balanced; tuned on TREC data, generalizes well</td><td>Start here. Azure, Milvus, OpenSearch all default to it (<a href="https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking">Azure</a>, <a href="https://milvus.io/docs/rrf-ranker.md">Milvus</a>)</td></tr>
+      <tr><td>low (<code>1–10</code>)</td><td>Top ranks dominate</td><td>Short final lists (top-5/10) where you trust each retriever's head</td></tr>
+      <tr><td>high (<code>60–100</code>)</td><td>Flatter; consensus across lists wins</td><td>Long candidate lists (top-100+), noisy retrievers</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Managing weights — the optional knob</h3>
+  <p>
+    The weighted variant <code>w_r / (k + rank)</code> isn't canonical RRF, but it's everywhere
+    in practice (<a href="https://bigdataboutique.com/blog/reciprocal-rank-fusion-how-it-works-and-when-to-use-it">BigDataBoutique</a>).
+    Strategy for managing it:
+  </p>
+  <table>
+    <thead><tr><th>Situation</th><th>Weights</th></tr></thead>
+    <tbody>
+      <tr><td>Default — no eval data yet</td><td><code>1 : 1</code>. Don't tune blind.</td></tr>
+      <tr><td>Measured: vector clearly stronger on your eval set</td><td>Raise vector, e.g. <code>0.7 : 1.3</code>; sweep and re-measure</td></tr>
+      <tr><td>Exact-match domain (SKUs, codes, names, legal cites)</td><td>Favor BM25</td></tr>
+      <tr><td>Paraphrase-heavy queries, conversational</td><td>Favor vector</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <b>! Never tune weights without an eval set.</b> Build 50–200 queries with judged answers,
+    measure <code>Recall@k</code> / <code>NDCG@10</code> / <code>MRR</code>, then sweep <code>k</code>
+    and weights. Equal weights + <code>k=60</code> is usually within noise of the tuned optimum.
+  </div>
+
+  <h2><span class="n">3</span>Feel it — fuse two lists</h2>
+  <div class="demo">
+    <h3>RRF playground</h3>
+    <p class="sub">Query: <i>“Why did Q3 revenue grow at Acme?”</i> — BM25 loves the exact keywords; vector search loves the meaning. Drag the knobs, watch the fused order flip.</p>
+    <div class="lists">
+      <div class="srclist bm25"><h4>BM25 ranking</h4><ol id="bmList"></ol></div>
+      <div class="srclist vec"><h4>Vector ranking</h4><ol id="vecList"></ol></div>
+    </div>
+    <div class="ctl"><label>k (smoothing)</label><input type="range" id="kSlider" min="1" max="100" step="1" value="60"><output id="kOut">60</output></div>
+    <div class="ctl"><label>BM25 weight</label><input type="range" id="wbSlider" min="0" max="2" step="0.1" value="1"><output id="wbOut">1.0</output></div>
+    <div class="ctl"><label>Vector weight</label><input type="range" id="wvSlider" min="0" max="2" step="0.1" value="1"><output id="wvOut">1.0</output></div>
+    <div class="fused" id="fusedList"></div>
+    <p style="font-size:.85rem; color:var(--muted); margin:.8em 0 0" id="rrfNote"></p>
+  </div>
+
+  <h2><span class="n">4</span>Diversify — Maximal Marginal Relevance</h2>
+  <p>
+    Fusion and reranking share a blind spot: they score each document <b>independently</b>.
+    If your corpus holds five near-copies of the same passage — and chunk <i>overlap</i>
+    from lesson 01 manufactures exactly such near-copies — all five can fill your top-5.
+    Relevant? Completely. Useful? You bought one fact five times.
+  </p>
+  <p>
+    MMR (<a href="https://www.cs.cmu.edu/~jgc/publication/The_Use_MMR_Diversity_Based_LTMIR_1998.pdf">Carbonell &amp; Goldstein, 1998</a>)
+    picks documents greedily, one at a time, rewarding relevance to the query and
+    <b>punishing similarity to what's already picked</b>:
+  </p>
+  <div class="formula">
+    pick &nbsp; argmax<sub>d</sub> [ <span class="hl">λ</span>·sim(d, query) − (1−<span class="hl">λ</span>)·max<sub>s ∈ selected</sub> sim(d, s) ]
+    <small>λ=1 → pure relevance (MMR off) · λ=0 → pure diversity · λ≈0.7 is the practical default</small>
+  </div>
+
+  <h2><span class="n">5</span>Feel it — the λ knob</h2>
+  <div class="demo">
+    <h3>MMR playground</h3>
+    <p class="sub">Query: <i>“How should I size my chunks?”</i> — 6 candidates, 3 are near-duplicates (⧉) of the same Chroma result. MMR selects 3. Watch what λ does.</p>
+    <div class="ctl"><label>λ (relevance ↔ diversity)</label><input type="range" id="lamSlider" min="0" max="1" step="0.05" value="1"><output id="lamOut">1.00</output></div>
+    <div id="mmrDocs"></div>
+    <p style="font-size:.85rem; color:var(--muted); margin:.8em 0 0" id="mmrNote"></p>
+  </div>
+  <div class="callout green">
+    <b>* When to reach for MMR:</b> redundant corpora (docs with boilerplate, versioned copies,
+    chunk overlap), multi-aspect questions (“compare X and Y”), and summarization-style RAG.
+    Skip it when your corpus has little duplication — λ below 1 then trades away pure relevance for nothing.
+  </div>
+
+  <h2><span class="n">6</span>Rerank — the cross-encoder</h2>
+  <p>
+    Your retriever is a <b>bi-encoder</b>: it embeds query and document <i>separately</i>,
+    then compares vectors. Fast — documents are embedded once, offline — but the model never
+    reads query and document <i>together</i>, so nuance dies in compression.
+  </p>
+  <p>
+    A <b>cross-encoder</b> reads the concatenated pair <code>[query + document]</code> through
+    one transformer pass and outputs a single relevance score. Far more accurate — and far too
+    slow to run against a whole corpus. Hence <b>two-stage retrieval</b>: bi-encoder casts a wide
+    net (50–150 candidates), cross-encoder rescores just those, keep the top 5–20
+    (<a href="https://www.pinecone.io/learn/series/rag/rerankers/">Pinecone</a>).
+  </p>
+  <table>
+    <thead><tr><th></th><th>Bi-encoder (retriever)</th><th>Cross-encoder (reranker)</th></tr></thead>
+    <tbody>
+      <tr><td>Reads query+doc together</td><td>✗</td><td>✓</td></tr>
+      <tr><td>Corpus precomputable</td><td>✓ (embed once)</td><td>✗ (every query)</td></tr>
+      <tr><td>Speed</td><td>ms over millions</td><td>~100ms over ~100 docs</td></tr>
+      <tr><td>Accuracy</td><td>baseline</td><td>&gt;4 pts better avg on BEIR (<a href="https://arxiv.org/pdf/2212.06121">Rosa et al., 2022</a>)</td></tr>
+    </tbody>
+  </table>
+  <p>
+    The payoff stacks with everything else: Anthropic measured contextual embeddings + contextual
+    BM25 cutting retrieval failures by 49% — and <b>adding reranking pushed that to 67%</b>
+    (<a href="https://www.anthropic.com/news/contextual-retrieval">Anthropic, 2024</a>).
+    Options: hosted APIs (Cohere Rerank, Voyage) or local open models
+    (<code>sentence-transformers</code> cross-encoders, BGE-reranker) — the latter fits your
+    no-framework constraint: it's one <code>model.predict([(query, doc)])</code> call.
+  </p>
+  <div class="callout">
+    <b>! Reranking can't resurrect what retrieval never returned.</b> It reorders candidates;
+    it doesn't add new ones. If recall is your problem (lesson 01), fix chunking/fusion first —
+    rerank only converts good recall into good precision.
+  </div>
+
+  <h2><span class="n">7</span>Strategy — which tool for which symptom</h2>
+  <table>
+    <thead><tr><th>Symptom</th><th>Tool</th><th>Starting knob</th></tr></thead>
+    <tbody>
+      <tr><td>Exact terms (IDs, names, codes) not found by vector search</td><td>Add BM25, fuse with <b>RRF</b></td><td><code>k=60</code>, weights <code>1:1</code></td></tr>
+      <tr><td>One retriever measurably stronger</td><td><b>Weighted RRF</b></td><td>Sweep weights on eval set</td></tr>
+      <tr><td>Candidates relevant-ish but the best one ranks #7</td><td><b>Cross-encoder rerank</b></td><td>Retrieve 100 → keep top 10</td></tr>
+      <tr><td>Top-k is the same fact repeated</td><td><b>MMR</b></td><td><code>λ=0.7</code></td></tr>
+      <tr><td>Answer not in candidates at all</td><td>None of these — recall problem</td><td>Back to chunking / query rewriting</td></tr>
+    </tbody>
+  </table>
+  <p>
+    And the order, with reasons: <b>fuse first</b> (free, widens the net) →
+    <b>rerank second</b> (expensive, so run it on the fused shortlist, not the raw corpus) →
+    <b>MMR last</b> (diversify the finalists, using the reranker's scores as the relevance term).
+  </p>
+
+  <h2><span class="n">8</span>Check yourself</h2>
+
+  <div class="quiz" id="q1">
+    <div class="q">1. A teammate merges hybrid results by summing the BM25 score (e.g. <code>14.2</code>) with cosine similarity (e.g. <code>0.81</code>) per doc. What's wrong?</div>
+    <button class="opt" data-ok="0">Nothing — addition is how RRF works</button>
+    <button class="opt" data-ok="1">The scales aren't comparable — BM25 is unbounded, cosine is [−1,1], so BM25 drowns out vector entirely. Use ranks (RRF), not raw scores</button>
+    <button class="opt" data-ok="0">Cosine similarity should be multiplied, not added</button>
+    <div class="fb"></div>
+  </div>
+
+  <div class="quiz" id="q2">
+    <div class="q">2. Your top-5 chunks are all near-identical copies of the same paragraph (thanks, 20% overlap). Reranking didn't help. Why not, and what does?</div>
+    <button class="opt" data-ok="0">The reranker is too weak — use a bigger cross-encoder</button>
+    <button class="opt" data-ok="1">Rerankers score each doc independently, so five copies of a relevant passage all score high. You need MMR (or dedup), which penalizes similarity to already-selected docs</button>
+    <button class="opt" data-ok="0">Lower RRF's k so the top hit dominates more</button>
+    <div class="fb"></div>
+  </div>
+
+  <div class="quiz" id="q3">
+    <div class="q">3. Latency budget allows one cross-encoder pass over ~100 docs per query. Where in the pipeline do you spend it?</div>
+    <button class="opt" data-ok="0">Before fusion — rerank each retriever's list separately so fusion gets better input</button>
+    <button class="opt" data-ok="1">After fusion — one pass over the fused top-100, so the expensive model sees the best candidates from <i>both</i> retrievers exactly once</button>
+    <button class="opt" data-ok="0">Skip retrieval and cross-encode the whole corpus for max accuracy</button>
+    <div class="fb"></div>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher — ask me anything.</b> Want the plain-Python implementation of any of
+    these (RRF is ~10 lines, MMR ~20)? Curious how MMR picks differently if you feed it reranker
+    scores vs raw cosine? Say the word. Quick-reference version of this lesson lives in
+    <a href="../reference/RANKING-PIPELINE.html" style="color:#a99bff">the ranking cheat sheet</a>.
+    When this clicks, say <b>"next"</b>.
+  </div>
+
+  <footer>
+    Lesson 02 of an ongoing track · grounded in
+    <a href="https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf">Cormack et al. 2009</a>,
+    <a href="https://www.cs.cmu.edu/~jgc/publication/The_Use_MMR_Diversity_Based_LTMIR_1998.pdf">Carbonell &amp; Goldstein 1998</a>,
+    <a href="https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking">Azure AI Search</a>,
+    <a href="https://www.pinecone.io/learn/series/rag/rerankers/">Pinecone</a> &amp;
+    <a href="https://www.anthropic.com/news/contextual-retrieval">Anthropic</a>.
+    Terms: <a href="../reference/GLOSSARY.html">glossary</a>.
+  </footer>
+
+<script>
+  // ---------- RRF playground ----------
+  // 8 docs; rank position in each list (1-based)
+  const DOCS=[
+    {id:'A', name:'Q3 revenue table (exact figures)', bm:1, vec:5},
+    {id:'B', name:'CEO letter: growth drivers',       bm:6, vec:1},
+    {id:'C', name:'Q3 press release',                 bm:2, vec:3},
+    {id:'D', name:'Q2 revenue table (wrong quarter)', bm:3, vec:8},
+    {id:'E', name:'Analyst call transcript',          bm:7, vec:2},
+    {id:'F', name:'Marketing blog on growth',         bm:8, vec:4},
+    {id:'G', name:'Footnote: accounting change',      bm:4, vec:7},
+    {id:'H', name:'Regional sales breakdown',         bm:5, vec:6},
+  ];
+  const bmList=document.getElementById('bmList'), vecList=document.getElementById('vecList');
+  [...DOCS].sort((a,b)=>a.bm-b.bm).forEach(d=>{bmList.insertAdjacentHTML('beforeend',`<li>${d.name}</li>`)});
+  [...DOCS].sort((a,b)=>a.vec-b.vec).forEach(d=>{vecList.insertAdjacentHTML('beforeend',`<li>${d.name}</li>`)});
+
+  const kS=document.getElementById('kSlider'), wbS=document.getElementById('wbSlider'), wvS=document.getElementById('wvSlider');
+  const kO=document.getElementById('kOut'), wbO=document.getElementById('wbOut'), wvO=document.getElementById('wvOut');
+  const fused=document.getElementById('fusedList'), rrfNote=document.getElementById('rrfNote');
+
+  function rrf(){
+    const k=+kS.value, wb=+wbS.value, wv=+wvS.value;
+    kO.textContent=k; wbO.textContent=wb.toFixed(1); wvO.textContent=wv.toFixed(1);
+    const scored=DOCS.map(d=>({...d, score: wb/(k+d.bm) + wv/(k+d.vec)}))
+                     .sort((a,b)=>b.score-a.score);
+    const max=scored[0].score||1;
+    fused.innerHTML='<h4 style="margin:0 0 6px;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)">Fused ranking (RRF)</h4>'+
+      scored.map((d,i)=>`<div class="frow ${i<3?'top3':''}">
+        <span class="rk">${i+1}</span><span class="nm">${d.name}</span>
+        <span class="badges"><span class="b">B#${d.bm}</span> <span class="v">V#${d.vec}</span></span>
+        <span class="barbox"><span class="bar" style="width:${(d.score/max*100).toFixed(1)}%"></span></span>
+        <span class="sc">${d.score.toFixed(4)}</span></div>`).join('');
+    const top=scored[0];
+    rrfNote.textContent = wb===0 ? 'BM25 weight 0 — pure vector search. Exact-figure doc A sinks.'
+      : wv===0 ? 'Vector weight 0 — pure keyword search. Paraphrased CEO letter (B) sinks.'
+      : k<=10 ? `Low k: each list's #1 dominates. "${top.name}" wins on raw rank advantage.`
+      : 'Notice who wins with k=60, 1:1 — the docs both retrievers agree on (consensus), not either list\'s solo favorite.';
+  }
+  [kS,wbS,wvS].forEach(s=>s.addEventListener('input',rrf)); rrf();
+
+  // ---------- MMR playground ----------
+  const MDOCS=[
+    {name:'Chroma study: 200 vs 400-token results', rel:.92, dup:false},
+    {name:'Blog repost of the Chroma study',        rel:.90, dup:true},
+    {name:'Overlap: keep 10–20% of chunk size',     rel:.78, dup:false},
+    {name:'Parent-child: search small, return big', rel:.74, dup:false},
+    {name:'Embedding model context limits',         rel:.70, dup:false},
+    {name:'Tweet-thread summary of Chroma study',   rel:.88, dup:true},
+  ];
+  // pairwise similarity (symmetric); dups of doc 0 are ~.95 similar
+  const SIM=[
+    [1,.96,.55,.50,.45,.93],
+    [.96,1,.55,.50,.45,.94],
+    [.55,.55,1,.58,.50,.52],
+    [.50,.50,.58,1,.42,.48],
+    [.45,.45,.50,.42,1,.44],
+    [.93,.94,.52,.48,.44,1],
+  ];
+  const lamS=document.getElementById('lamSlider'), lamO=document.getElementById('lamOut');
+  const mmrBox=document.getElementById('mmrDocs'), mmrNote=document.getElementById('mmrNote');
+
+  function mmrPick(lambda, n){
+    const sel=[];
+    while(sel.length<n){
+      let best=-1, bestScore=-Infinity;
+      for(let i=0;i<MDOCS.length;i++){
+        if(sel.includes(i)) continue;
+        const maxSim = sel.length ? Math.max(...sel.map(s=>SIM[i][s])) : 0;
+        const score = lambda*MDOCS[i].rel - (1-lambda)*maxSim;
+        if(score>bestScore){bestScore=score; best=i;}
+      }
+      sel.push(best);
+    }
+    return sel;
+  }
+  function mmr(){
+    const lam=+lamS.value; lamO.textContent=lam.toFixed(2);
+    const picked=mmrPick(lam,3);
+    mmrBox.innerHTML=MDOCS.map((d,i)=>{
+      const ord=picked.indexOf(i);
+      return `<div class="mmr-doc ${ord>=0?'picked':''} ${d.dup?'dup':''}">
+        <span class="ord">${ord>=0?ord+1:''}</span><span class="nm">${d.name}</span>
+        <span class="meta">rel ${d.rel.toFixed(2)}</span></div>`;
+    }).join('');
+    const dupsPicked=picked.filter(i=>MDOCS[i].dup).length;
+    mmrNote.textContent = lam>=.95 ? 'λ≈1: pure relevance — the three most relevant docs are all the SAME Chroma result (⧉). The LLM gets one fact, three times.'
+      : lam<=.2 ? 'λ near 0: diversity-obsessed and degenerate — relevance barely matters, selection turns arbitrary. Almost never what you want.'
+      : dupsPicked===0 ? `λ=${lam.toFixed(2)}: duplicates suppressed. Top relevance + two genuinely different angles — strictly more information in the same 3 slots.`
+      : 'Mid-range: one duplicate still slips through. Push λ a bit lower to suppress it.';
+  }
+  lamS.addEventListener('input',mmr); mmr();
+
+  // ---------- quizzes ----------
+  const FB={
+    q1:["Exactly — the scales are incommensurable, and any raw-score blend silently becomes 'BM25 plus noise'. RRF sidesteps the whole problem by using only rank positions.",
+        "Look again at the magnitudes: 14.2 vs 0.81. Whatever the combination rule, the unbounded BM25 score dominates. That's the score-normalization problem RRF exists to dodge."],
+    q2:["Right — relevance scoring is per-document, so redundancy is invisible to it. MMR is the only stage here that looks at the candidates as a *set*. (Chunk overlap is a common source of these dups — a chunking choice with downstream consequences.)",
+        "The reranker did its job perfectly: every copy IS relevant. The failure is redundancy, which per-document scoring can't see. You need a set-level criterion — MMR."],
+    q3:["Correct — fuse first (free) so the expensive pass covers the best of both retrievers; rerank once on the fused shortlist. Reranking before fusion doubles cost for nothing; cross-encoding a corpus is computationally absurd.",
+        "Think cost-order: fusion is free arithmetic, the cross-encoder is the expensive stage. Spend the expensive pass once, on the best fused shortlist — fuse → rerank."]
+  };
+  document.querySelectorAll('.quiz').forEach(q=>{
+    const fb=q.querySelector('.fb');
+    q.querySelectorAll('.opt').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const ok=btn.dataset.ok==='1';
+        q.querySelectorAll('.opt').forEach(b=>{b.disabled=true; if(b.dataset.ok==='1')b.classList.add('correct');});
+        if(!ok)btn.classList.add('wrong');
+        const msg=FB[q.id];
+        fb.innerHTML = ok ? msg[0] : (msg[1]||msg[0]);
+        fb.className='fb show '+(ok?'ok':'no');
+      });
+    });
+  });
+</script>
+</body>
+</html>

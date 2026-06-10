@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 01 — The Chunking Dilemma</title>
+<style>
+  :root{
+    --ink:#1a1a2e; --muted:#5c5c74; --line:#e4e4ef; --bg:#fbfbfd; --card:#ffffff;
+    --accent:#5b3df5; --accent-soft:#efeaff;
+    --recall:#1a7a4c; --recall-soft:#e0f5ea;
+    --prec:#b03a3a; --prec-soft:#fde8e8;
+    --good:#1a7a4c; --bad:#b03a3a;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.6;
+    max-width:760px; margin:0 auto; padding:48px 24px 90px;
+  }
+  .kicker{font-size:.78rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent)}
+  h1{font-size:2.1rem; line-height:1.15; letter-spacing:-.025em; margin:.2em 0 .3em}
+  .lede{font-size:1.12rem; color:var(--muted); margin:0 0 8px}
+  h2{font-size:1.35rem; letter-spacing:-.015em; margin:2.4em 0 .4em; padding-top:.4em}
+  h2 .n{color:var(--accent); font-variant-numeric:tabular-nums; margin-right:.4em}
+  p{margin:.7em 0}
+  code{background:#eef0f6; padding:1px 6px; border-radius:5px; font-size:.86em}
+  a{color:var(--accent)}
+  .mission{
+    background:var(--accent-soft); border-left:4px solid var(--accent);
+    border-radius:0 8px 8px 0; padding:12px 18px; font-size:.92rem; margin:18px 0 0;
+  }
+  .mission b{color:var(--accent)}
+  .twocol{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:18px 0}
+  .pole{border-radius:12px; padding:16px 18px; border:1px solid var(--line)}
+  .pole h3{margin:.1em 0 .4em; font-size:1.05rem}
+  .pole.small{background:var(--prec-soft)} .pole.small h3{color:var(--prec)}
+  .pole.big{background:var(--recall-soft)} .pole.big h3{color:var(--recall)}
+  .pole ul{margin:.4em 0 0; padding-left:1.1em; font-size:.92rem}
+  .pole li{margin:.25em 0}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:.92rem}
+  th,td{padding:8px 10px; text-align:center; border-bottom:1px solid var(--line)}
+  th{font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:700}
+  td:first-child,th:first-child{text-align:left}
+  tbody tr:hover{background:#f4f2fe}
+  .hi-recall{color:var(--recall); font-weight:700}
+  .hi-prec{color:var(--prec); font-weight:700}
+  figcaption{font-size:.8rem; color:var(--muted); text-align:center; margin-top:-6px}
+
+  /* interactive slider */
+  .demo{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin:20px 0}
+  .demo h3{margin:0 0 4px; font-size:1.05rem}
+  .bars{display:flex; gap:18px; align-items:flex-end; height:120px; margin:16px 0 6px}
+  .bar-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%}
+  .bar{width:100%; border-radius:7px 7px 0 0; transition:height .25s ease}
+  .bar.r{background:var(--recall)} .bar.p{background:var(--prec)}
+  .bar-lbl{font-size:.78rem; color:var(--muted); margin-top:6px}
+  .bar-val{font-size:.85rem; font-weight:700; margin-bottom:4px}
+  input[type=range]{width:100%; accent-color:var(--accent)}
+  .sizeout{font-weight:700; color:var(--accent)}
+
+  /* quiz */
+  .quiz{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin:22px 0}
+  .quiz .q{font-weight:600; margin:.2em 0 .8em}
+  .opt{
+    display:block; width:100%; text-align:left; cursor:pointer; margin:8px 0;
+    padding:11px 14px; border:1.5px solid var(--line); border-radius:10px;
+    background:#fff; font:inherit; color:inherit; transition:.15s;
+  }
+  .opt:hover{border-color:var(--accent)}
+  .opt.correct{border-color:var(--good); background:var(--recall-soft)}
+  .opt.wrong{border-color:var(--bad); background:var(--prec-soft)}
+  .opt:disabled{cursor:default}
+  .fb{font-size:.9rem; margin-top:10px; padding:10px 14px; border-radius:9px; display:none}
+  .fb.show{display:block}
+  .fb.ok{background:var(--recall-soft); color:var(--recall)}
+  .fb.no{background:var(--prec-soft); color:var(--prec)}
+
+  .ask{background:#16213e; color:#e8e8f5; border-radius:14px; padding:18px 22px; margin:34px 0 0; font-size:.95rem}
+  .ask b{color:#a99bff}
+  footer{margin-top:30px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.8rem}
+  @media(max-width:560px){.twocol{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="kicker">Lesson 01 · Chunking for RAG</div>
+  <h1>The Chunking Dilemma</h1>
+  <p class="lede">Why there is no "best" chunk size — only a tradeoff you steer.</p>
+
+  <div class="mission">
+    <b>Your mission:</b> pick a chunking strategy for an upcoming project <i>and defend it</i>.
+    You can't defend a choice until you know the axis every choice trades on. That axis is this lesson.
+  </div>
+
+  <h2><span class="n">1</span>The one tension</h2>
+  <p>
+    Retrieval returns <i>chunks</i>, not documents. So how you cut the text decides what the LLM
+    can ever see. Make the cuts small and you get sharp, on-target hits — but you slice ideas apart
+    and lose context. Make them big and each chunk carries full context — but every hit drags in
+    paragraphs of irrelevant noise.
+  </p>
+  <p>That is the whole game. Two poles, pulling opposite ways:</p>
+
+  <div class="twocol">
+    <div class="pole small">
+      <h3>↓ Small chunks</h3>
+      <ul>
+        <li><b>High precision</b> — little noise per hit</li>
+        <li>Tight, specific matches</li>
+        <li><b>But:</b> ideas get split across boundaries</li>
+        <li><b>But:</b> a chunk can lose its own context ("revenue grew 3%" — <i>whose?</i>)</li>
+      </ul>
+    </div>
+    <div class="pole big">
+      <h3>↑ Large chunks</h3>
+      <ul>
+        <li><b>High recall</b> — sweeps in the answer</li>
+        <li>Full context travels with the text</li>
+        <li><b>But:</b> noise dilutes the context window</li>
+        <li><b>But:</b> embeddings get "blurry" — many topics, one vector</li>
+      </ul>
+    </div>
+  </div>
+  <p>
+    <b>Precision</b> = of what you returned, how much was actually relevant.
+    <b>Recall</b> = of what was relevant, how much you returned.
+    Chunk size pushes them in opposite directions — you don't get both for free.
+    (Full definitions in your <a href="../reference/GLOSSARY.html">glossary</a>.)
+  </p>
+
+  <h2><span class="n">2</span>The evidence</h2>
+  <p>
+    This isn't hand-waving. Chroma ran a token-level evaluation across chunking strategies.
+    Watch precision and recall move <i>apart</i> as size grows:
+  </p>
+
+  <figure>
+  <table>
+    <thead>
+      <tr><th>Strategy</th><th>Size (tok)</th><th>Recall ↑</th><th>Precision ↑</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>ClusterSemantic</td><td>200</td><td>87.3%</td><td class="hi-prec">8.0%</td></tr>
+      <tr><td>Recursive</td><td>200</td><td>88.1%</td><td>7.0%</td></tr>
+      <tr><td>TokenText (fixed)</td><td>200</td><td>87.0%</td><td>5.2%</td></tr>
+      <tr><td>ClusterSemantic</td><td>400</td><td class="hi-recall">91.3%</td><td>4.5%</td></tr>
+      <tr><td>LLMSemantic</td><td>~varies</td><td class="hi-recall">91.9%</td><td>3.9%</td></tr>
+    </tbody>
+  </table>
+  <figcaption>text-embedding-3-large, 5 chunks retrieved · <a href="https://www.trychroma.com/research/evaluating-chunking">Chroma Research, 2024</a></figcaption>
+  </figure>
+
+  <p>
+    Read the two ClusterSemantic rows. Going <code>200 → 400</code> tokens:
+    recall climbs <b>87.3% → 91.3%</b> but precision <i>falls</i> <b>8.0% → 4.5%</b>.
+    Same strategy. Just bigger chunks. The dilemma, in two rows.
+  </p>
+  <p style="font-size:.92rem; color:var(--muted)">
+    (Precision looks tiny because it's measured token-by-token — a 200-token chunk holding a
+    10-token answer is "mostly noise" by this strict ruler. Use the numbers to <i>compare</i>, not as grades.)
+  </p>
+
+  <h2><span class="n">3</span>Feel it — move the knob</h2>
+  <div class="demo">
+    <h3>Chunk size: <span class="sizeout" id="sizeOut">200</span> tokens</h3>
+    <div class="bars">
+      <div class="bar-wrap"><span class="bar-val" id="rVal">87%</span><div class="bar r" id="rBar" style="height:70%"></div><span class="bar-lbl">Recall</span></div>
+      <div class="bar-wrap"><span class="bar-val" id="pVal">8.0%</span><div class="bar p" id="pBar" style="height:80%"></div><span class="bar-lbl">Precision</span></div>
+    </div>
+    <input type="range" id="slider" min="100" max="800" step="50" value="200">
+    <p style="font-size:.88rem; color:var(--muted); margin:.6em 0 0" id="demoNote">
+      Small chunks: precision wins. Drag right and watch recall rise as precision drops.
+    </p>
+  </div>
+
+  <h2><span class="n">4</span>Check yourself</h2>
+
+  <div class="quiz" id="q1">
+    <div class="q">1. Your RAG answers are often <i>incomplete</i> — the model clearly never saw the full relevant passage. Which way do you move chunk size first?</div>
+    <button class="opt" data-ok="0">Smaller chunks, to sharpen precision</button>
+    <button class="opt" data-ok="1">Larger chunks, to raise recall</button>
+    <button class="opt" data-ok="0">It's unrelated to chunk size</button>
+    <div class="fb"></div>
+  </div>
+
+  <div class="quiz" id="q2">
+    <div class="q">2. The model gets <i>distracted</i> — answers wander into irrelevant detail that's clearly in the retrieved context. Best first move?</div>
+    <button class="opt" data-ok="1">Smaller chunks, to raise precision (less noise per hit)</button>
+    <button class="opt" data-ok="0">Larger chunks, so it has more to work with</button>
+    <button class="opt" data-ok="0">Add more chunks to the context window</button>
+    <div class="fb"></div>
+  </div>
+
+  <div class="quiz" id="q3">
+    <div class="q">3. A teammate says "just use the strategy with the highest recall — LLMSemantic at 91.9%." Why is that not automatically right for you?</div>
+    <button class="opt" data-ok="0">Recall doesn't matter for RAG</button>
+    <button class="opt" data-ok="1">Highest recall came with the lowest precision (3.9%) — more noise — plus it's the slowest/priciest; the right pick depends on your goal</button>
+    <button class="opt" data-ok="0">LLMSemantic isn't a real chunking method</button>
+    <div class="fb"></div>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher — ask me anything.</b> Stuck on why precision numbers are so low?
+    Want to see the slider math, or how "lose context" actually breaks an embedding?
+    Tell me and we'll dig in. When this clicks, say <b>"next"</b> — Lesson 02 walks the strategy
+    landscape (fixed → recursive → semantic → contextual) and where each sits on this axis.
+  </div>
+
+  <footer>
+    Lesson 01 of an ongoing track · grounded in
+    <a href="https://www.trychroma.com/research/evaluating-chunking">Chroma Research</a> &amp;
+    <a href="https://www.anthropic.com/news/contextual-retrieval">Anthropic</a>.
+    Terms: <a href="../reference/GLOSSARY.html">glossary</a>.
+  </footer>
+
+<script>
+  // Interactive tradeoff knob. Illustrative curve anchored on the Chroma 200/400 datapoints.
+  const slider=document.getElementById('slider');
+  const sizeOut=document.getElementById('sizeOut');
+  const rBar=document.getElementById('rBar'), pBar=document.getElementById('pBar');
+  const rVal=document.getElementById('rVal'), pVal=document.getElementById('pVal');
+  const note=document.getElementById('demoNote');
+  function update(){
+    const s=+slider.value;
+    sizeOut.textContent=s;
+    // recall rises with size (saturating), precision falls with size — anchored near real data
+    const recall=Math.min(95, 80 + (s-100)*0.018);      // ~82 @100 → ~92.5 @800
+    const prec=Math.max(2.5, 9.5 - (s-100)*0.011);       // ~9.5 @100 → ~1.8 floored @800
+    rVal.textContent=recall.toFixed(0)+'%';
+    pVal.textContent=prec.toFixed(1)+'%';
+    rBar.style.height=(recall)+'%';
+    pBar.style.height=(prec*10)+'%';   // scale precision (single digits) to be visible
+    note.textContent = s<=200 ? 'Small chunks: precision wins, recall lags. Drag right →'
+      : s>=550 ? 'Large chunks: recall maxed, precision crushed — context window full of noise.'
+      : 'Mid-range: the usual sweet spot. ~200–400 tok is where most production systems live.';
+  }
+  slider.addEventListener('input',update); update();
+
+  // Quizzes with immediate feedback
+  const FB={
+    q1:["Right — incomplete answers = a recall problem. Bigger chunks (or more overlap, or parent-child) bring the full passage along.",
+        "That's the wrong direction. Incomplete answers mean you're <i>missing</i> relevant text — a recall problem. Smaller chunks make recall worse."],
+    q2:["Exactly — distraction from in-context noise is a precision problem. Smaller, tighter chunks cut the noise per hit.",
+        "Careful — the model is drowning in noise it already has. More/bigger context adds <i>more</i> noise. You want higher precision: smaller chunks."],
+    q3:["Nailed it — every metric is a tradeoff. 91.9% recall bought the worst precision (3.9%) and the highest cost/latency. 'Best' only exists relative to <i>your</i> goal and budget. That's why you justify, not default."]
+  };
+  document.querySelectorAll('.quiz').forEach(q=>{
+    const fb=q.querySelector('.fb');
+    q.querySelectorAll('.opt').forEach((btn,i)=>{
+      btn.addEventListener('click',()=>{
+        const ok=btn.dataset.ok==='1';
+        q.querySelectorAll('.opt').forEach(b=>{b.disabled=true; if(b.dataset.ok==='1')b.classList.add('correct');});
+        if(!ok)btn.classList.add('wrong');
+        const msg=FB[q.id];
+        fb.innerHTML = ok ? msg[0] : (msg[1]||msg[0]);
+        fb.className='fb show '+(ok?'ok':'no');
+      });
+    });
+  });
+</script>
+</body>
+</html>

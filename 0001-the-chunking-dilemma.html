@@ -80,9 +80,23 @@
   .ask b{color:#a99bff}
   footer{margin-top:30px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.8rem}
   @media(max-width:560px){.twocol{grid-template-columns:1fr}}
+
+  .lesson-nav{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:.85rem; margin-bottom:18px}
+  .lesson-nav a{color:var(--muted); font-weight:600; padding:4px 8px; border-radius:7px}
+  .lesson-nav a:hover{background:var(--accent-soft); color:var(--accent)}
+  .lesson-nav a.home{color:var(--accent)}
+  .lesson-nav .sep{color:var(--line)}
+  .lesson-nav a.current{color:var(--ink); background:var(--accent-soft); pointer-events:none}
+  @media(max-width:480px){.lesson-nav{font-size:.8rem; gap:6px}}
 </style>
 </head>
 <body>
+  <nav class="lesson-nav">
+    <a class="home" href="index.html">← Home</a>
+    <span class="sep">|</span>
+    <a class="current" href="0001-the-chunking-dilemma.html">Lesson 1</a>
+    <a href="0002-fuse-diversify-rerank.html">Lesson 2 →</a>
+  </nav>
   <div class="kicker">Lesson 01 · Chunking for RAG</div>
   <h1>The Chunking Dilemma</h1>
   <p class="lede">Why there is no "best" chunk size — only a tradeoff you steer.</p>

@@ -30,12 +30,28 @@
     padding:10px 20px}
   .brand{font-family:var(--serif);font-weight:700;font-size:18px;letter-spacing:.2px}
   .brand small{color:var(--teal)}
-  .bar nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+  .bar nav{display:flex;gap:6px;flex-wrap:wrap}
   .bar nav a{color:var(--muted);font-size:13px;padding:5px 9px;border-radius:7px}
   .bar nav a:hover{background:var(--panel2);color:var(--text);text-decoration:none}
-  .lang{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px}
+  .bar-right{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+  .lang{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;flex:none}
   .lang button{background:transparent;color:var(--muted);border:0;padding:6px 11px;cursor:pointer;font-weight:600}
   .lang button.on{background:var(--teal);color:#06241f}
+  .menu-toggle{display:none;background:transparent;color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:6px 10px;font-size:15px;line-height:1;cursor:pointer;flex:none}
+  .menu-toggle:hover{border-color:var(--teal);color:var(--teal)}
+
+  @media(max-width:860px){
+    .menu-toggle{display:inline-flex;align-items:center;justify-content:center}
+    .bar nav{flex:1 1 100%;order:3;display:none;flex-direction:column;gap:2px;margin-top:8px}
+    .bar nav.open{display:flex}
+    .bar nav a{padding:10px 12px;border-radius:8px}
+  }
+  @media(max-width:420px){
+    .bar-in{padding:10px 14px;gap:10px}
+    .brand{font-size:16px}
+    .lang button{padding:6px 8px;font-size:12px}
+  }
 
   main{max-width:var(--maxw);margin:0 auto;padding:0 20px 120px}
 
@@ -173,9 +189,12 @@
       <a href="#war" data-i18n="nav_war">War stories</a>
       <a href="#lessons" data-i18n="nav_lessons">Lessons</a>
     </nav>
-    <div class="lang">
-      <button id="enBtn" class="on" onclick="setLang('en')">EN</button>
-      <button id="ukBtn" onclick="setLang('uk')">UA</button>
+    <div class="bar-right">
+      <div class="lang">
+        <button id="enBtn" class="on" onclick="setLang('en')">EN</button>
+        <button id="ukBtn" onclick="setLang('uk')">UA</button>
+      </div>
+      <button class="menu-toggle" id="menuToggle" onclick="toggleMenu()" aria-label="Toggle menu" aria-expanded="false">☰</button>
     </div>
   </div>
 </header>
@@ -938,6 +957,19 @@ function setLang(l){
   applyI18n();
   renderAll();
 }
+
+function toggleMenu(){
+  const nav = document.querySelector('.bar nav');
+  const btn = document.getElementById('menuToggle');
+  const open = nav.classList.toggle('open');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+document.querySelectorAll('.bar nav a').forEach(a=>{
+  a.addEventListener('click', ()=>{
+    document.querySelector('.bar nav').classList.remove('open');
+    document.getElementById('menuToggle').setAttribute('aria-expanded','false');
+  });
+});
 
 /* ---- RRF demo ---- */
 let fused=false;
